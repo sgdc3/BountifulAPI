@@ -33,12 +33,6 @@ public class BountifulAPI extends JavaPlugin implements Listener {
         sendTitle(player, fadeIn, stay, fadeOut, title, subtitle);
     }
 
-    @Deprecated
-    public static Integer getPlayerProtocol(Player player) {
-        /* Returns the 1.8 protocol version as this is the only protocol a player can possibly be on with Spigot 1.8 */
-        return 47;
-    }
-
     public static void sendPacket(Player player, Object packet) {
         try {
             Object handle = player.getClass().getMethod("getHandle").invoke(player);
