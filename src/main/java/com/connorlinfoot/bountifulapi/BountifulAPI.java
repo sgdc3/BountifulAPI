@@ -228,6 +228,7 @@ public class BountifulAPI extends JavaPlugin implements Listener {
 		getConfig().options().copyDefaults(true);
 		saveConfig();
 
+                /*
 		CLUpdate clUpdate = new CLUpdate(this);
 		CLUpdate.UpdateResult updateResult = clUpdate.getResult();
 
@@ -250,13 +251,16 @@ public class BountifulAPI extends JavaPlugin implements Listener {
 				updateMessage = pluginPrefix + "An update for " + getDescription().getName() + " is available, new version is " + clUpdate.getVersion() + ". Your installed version is " + getDescription().getVersion() + ".\nPlease update to the latest version :)";
 				break;
 		}
+                */
 
 		Server server = getServer();
 		ConsoleCommandSender console = server.getConsoleSender();
 		console.sendMessage(ChatColor.AQUA + getDescription().getName() + " V" + getDescription().getVersion() + " has been enabled!");
 
+                /*
 		if (updateMessage != null)
 			console.sendMessage(updateMessage);
+	        */
 		Bukkit.getPluginManager().registerEvents(this, this);
 	}
 
