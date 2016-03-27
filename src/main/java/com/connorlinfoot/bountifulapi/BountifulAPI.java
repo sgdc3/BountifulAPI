@@ -2,8 +2,6 @@ package com.connorlinfoot.bountifulapi;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Server;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -15,8 +13,50 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import com.connorlinfoot.bountifulapi.Utils;
+
 public class BountifulAPI extends JavaPlugin implements Listener {
     public static BountifulAPI bountifulAPI;
+    private String updateMessage;
+
+    public void onEnable() {
+        // Instances
+        bountifulAPI = this;
+        // Settings
+        getConfig().options().copyDefaults(true);
+        saveConfig();
+
+        // Updater
+        if(getConfig().getBoolean("Updater")) {
+            CLUpdate clUpdate = new CLUpdate(this);
+            CLUpdate.UpdateResult updateResult = clUpdate.getResult();
+            switch (updateResult) {
+                default:
+                case NO_UPDATE:
+                    updateMessage = "No update was found, you are running the latest version.";
+                    break;
+                case UPDATE_AVAILABLE:
+                    updateMessage = "An update for " + getDescription().getName() + " is available, new version is " + clUpdate.getVersion() + ". Your installed version is " + getDescription().getVersion() + ".\nPlease update to the latest version :)";
+                    break;
+            }
+        }
+        if (updateMessage != null) {
+            getLogger().info(updateMessage);
+        }
+
+        // Register events
+        Bukkit.getPluginManager().registerEvents(this, this);
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (getConfig().getBoolean("Title On Join")) {
+            sendTitle(event.getPlayer(), 20, 50, 20, getConfig().getString("Title Message"), getConfig().getString("Subtitle Message"));
+        }
+        if (getConfig().getBoolean("Tab Header Enabled")) {
+            sendTabTitle(event.getPlayer(), getConfig().getString("Tab Header Message"), getConfig().getString("Tab Footer Message"));
+        }
+    }
 
     @Deprecated
     public static void sendTitle(Player player, Integer fadeIn, Integer stay, Integer fadeOut, String message) {
@@ -33,36 +73,18 @@ public class BountifulAPI extends JavaPlugin implements Listener {
         sendTitle(player, fadeIn, stay, fadeOut, title, subtitle);
     }
 
-    public static void sendPacket(Player player, Object packet) {
-        try {
-            Object handle = player.getClass().getMethod("getHandle").invoke(player);
-            Object playerConnection = handle.getClass().getField("playerConnection").get(handle);
-            playerConnection.getClass().getMethod("sendPacket", getNMSClass("Packet")).invoke(playerConnection, packet);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static Class<?> getNMSClass(String name) {
-        String version = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
-        try {
-            return Class.forName("net.minecraft.server." + version + "." + name);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
     public static void sendTitle(Player player, Integer fadeIn, Integer stay, Integer fadeOut, String title, String subtitle) {
         TitleSendEvent titleSendEvent = new TitleSendEvent(player, title, subtitle);
         Bukkit.getPluginManager().callEvent(titleSendEvent);
-        if (titleSendEvent.isCancelled())
+        if (titleSendEvent.isCancelled()) {
             return;
+        }
 
         try {
             Object e;
             Object chatTitle;
             Object chatSubtitle;
+            @SuppressWarnings("rawtypes")
             Constructor subtitleConstructor;
             Object titlePacket;
             Object subtitlePacket;
@@ -71,34 +93,34 @@ public class BountifulAPI extends JavaPlugin implements Listener {
                 title = ChatColor.translateAlternateColorCodes('&', title);
                 title = title.replaceAll("%player%", player.getDisplayName());
                 // Times packets
-                e = getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("TIMES").get((Object) null);
-                chatTitle = getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + title + "\"}"});
-                subtitleConstructor = getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], getNMSClass("IChatBaseComponent"), Integer.TYPE, Integer.TYPE, Integer.TYPE});
+                e = Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("TIMES").get((Object) null);
+                chatTitle = Utils.getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + title + "\"}"});
+                subtitleConstructor = Utils.getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], Utils.getNMSClass("IChatBaseComponent"), Integer.TYPE, Integer.TYPE, Integer.TYPE});
                 titlePacket = subtitleConstructor.newInstance(new Object[]{e, chatTitle, fadeIn, stay, fadeOut});
-                sendPacket(player, titlePacket);
+                Utils.sendPacket(player, titlePacket);
 
-                e = getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("TITLE").get((Object) null);
-                chatTitle = getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + title + "\"}"});
-                subtitleConstructor = getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], getNMSClass("IChatBaseComponent")});
+                e = Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("TITLE").get((Object) null);
+                chatTitle = Utils.getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + title + "\"}"});
+                subtitleConstructor = Utils.getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], Utils.getNMSClass("IChatBaseComponent")});
                 titlePacket = subtitleConstructor.newInstance(new Object[]{e, chatTitle});
-                sendPacket(player, titlePacket);
+                Utils.sendPacket(player, titlePacket);
             }
 
             if (subtitle != null) {
                 subtitle = ChatColor.translateAlternateColorCodes('&', subtitle);
                 subtitle = subtitle.replaceAll("%player%", player.getDisplayName());
                 // Times packets
-                e = getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("TIMES").get((Object) null);
-                chatSubtitle = getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + title + "\"}"});
-                subtitleConstructor = getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], getNMSClass("IChatBaseComponent"), Integer.TYPE, Integer.TYPE, Integer.TYPE});
+                e = Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("TIMES").get((Object) null);
+                chatSubtitle = Utils.getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + title + "\"}"});
+                subtitleConstructor = Utils.getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], Utils.getNMSClass("IChatBaseComponent"), Integer.TYPE, Integer.TYPE, Integer.TYPE});
                 subtitlePacket = subtitleConstructor.newInstance(new Object[]{e, chatSubtitle, fadeIn, stay, fadeOut});
-                sendPacket(player, subtitlePacket);
+                Utils.sendPacket(player, subtitlePacket);
 
-                e = getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("SUBTITLE").get((Object) null);
-                chatSubtitle = getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + subtitle + "\"}"});
-                subtitleConstructor = getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], getNMSClass("IChatBaseComponent"), Integer.TYPE, Integer.TYPE, Integer.TYPE});
+                e = Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0].getField("SUBTITLE").get((Object) null);
+                chatSubtitle = Utils.getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", new Class[]{String.class}).invoke((Object) null, new Object[]{"{\"text\":\"" + subtitle + "\"}"});
+                subtitleConstructor = Utils.getNMSClass("PacketPlayOutTitle").getConstructor(new Class[]{Utils.getNMSClass("PacketPlayOutTitle").getDeclaredClasses()[0], Utils.getNMSClass("IChatBaseComponent"), Integer.TYPE, Integer.TYPE, Integer.TYPE});
                 subtitlePacket = subtitleConstructor.newInstance(new Object[]{e, chatSubtitle, fadeIn, stay, fadeOut});
-                sendPacket(player, subtitlePacket);
+                Utils.sendPacket(player, subtitlePacket);
             }
         } catch (Exception var11) {
             var11.printStackTrace();
@@ -110,29 +132,36 @@ public class BountifulAPI extends JavaPlugin implements Listener {
     }
 
     public static void sendTabTitle(Player player, String header, String footer) {
-        if (header == null) header = "";
-        header = ChatColor.translateAlternateColorCodes('&', header);
+        if (header == null) {
+            header = "";
+        } else {
+            header = ChatColor.translateAlternateColorCodes('&', header);
+        }
 
-        if (footer == null) footer = "";
-        footer = ChatColor.translateAlternateColorCodes('&', footer);
+        if (footer == null) {
+            footer = "";
+        } else {
+            footer = ChatColor.translateAlternateColorCodes('&', footer);
+        }
 
         TabTitleSendEvent tabTitleSendEvent = new TabTitleSendEvent(player, header, footer);
         Bukkit.getPluginManager().callEvent(tabTitleSendEvent);
-        if (tabTitleSendEvent.isCancelled())
+        if (tabTitleSendEvent.isCancelled()) {
             return;
+        }
 
         header = header.replaceAll("%player%", player.getDisplayName());
         footer = footer.replaceAll("%player%", player.getDisplayName());
 
         try {
-            Object tabHeader = getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", String.class).invoke(null, "{\"text\":\"" + header + "\"}");
-            Object tabFooter = getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", String.class).invoke(null, "{\"text\":\"" + footer + "\"}");
-            Constructor<?> titleConstructor = getNMSClass("PacketPlayOutPlayerListHeaderFooter").getConstructor(getNMSClass("IChatBaseComponent"));
+            Object tabHeader = Utils.getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", String.class).invoke(null, "{\"text\":\"" + header + "\"}");
+            Object tabFooter = Utils.getNMSClass("IChatBaseComponent").getDeclaredClasses()[0].getMethod("a", String.class).invoke(null, "{\"text\":\"" + footer + "\"}");
+            Constructor<?> titleConstructor = Utils.getNMSClass("PacketPlayOutPlayerListHeaderFooter").getConstructor(Utils.getNMSClass("IChatBaseComponent"));
             Object packet = titleConstructor.newInstance(tabHeader);
             Field field = packet.getClass().getDeclaredField("b");
             field.setAccessible(true);
             field.set(packet, tabFooter);
-            sendPacket(player, packet);
+            Utils.sendPacket(player, packet);
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -141,8 +170,9 @@ public class BountifulAPI extends JavaPlugin implements Listener {
     public static void sendActionBar(Player player, String message) {
         ActionBarMessageEvent actionBarMessageEvent = new ActionBarMessageEvent(player, message);
         Bukkit.getPluginManager().callEvent(actionBarMessageEvent);
-        if (actionBarMessageEvent.isCancelled())
+        if (actionBarMessageEvent.isCancelled()) {
             return;
+        }
 
         String nmsver = Bukkit.getServer().getClass().getPackage().getName();
         nmsver = nmsver.substring(nmsver.lastIndexOf(".") + 1);
@@ -208,70 +238,6 @@ public class BountifulAPI extends JavaPlugin implements Listener {
     public static void sendActionBarToAllPlayers(String message, int duration) {
         for (Player p : Bukkit.getOnlinePlayers()) {
             sendActionBar(p, message, duration);
-        }
-    }
-
-    private String pluginPrefix = ChatColor.GRAY + "[" + ChatColor.AQUA + "TitleAPI" + ChatColor.GRAY + "] " + ChatColor.RESET;
-    private String pluginMessage = null;
-    private String updateMessage = null;
-    private boolean updateAvailable = false;
-
-    public void onEnable() {
-        bountifulAPI = this;
-        getConfig().options().copyDefaults(true);
-        saveConfig();
-
-                /*
-        CLUpdate clUpdate = new CLUpdate(this);
-        CLUpdate.UpdateResult updateResult = clUpdate.getResult();
-
-        if (clUpdate.getMessage() != null) {
-            pluginMessage = clUpdate.getMessage();
-        }
-
-        switch (updateResult) {
-            default:
-            case NO_UPDATE:
-                updateAvailable = false;
-                updateMessage = pluginPrefix + "No update was found, you are running the latest version.";
-                break;
-            case DISABLED:
-                updateAvailable = false;
-                updateMessage = pluginPrefix + "You currently have update checks disabled";
-                break;
-            case UPDATE_AVAILABLE:
-                updateAvailable = true;
-                updateMessage = pluginPrefix + "An update for " + getDescription().getName() + " is available, new version is " + clUpdate.getVersion() + ". Your installed version is " + getDescription().getVersion() + ".\nPlease update to the latest version :)";
-                break;
-        }
-                */
-
-        Server server = getServer();
-        ConsoleCommandSender console = server.getConsoleSender();
-        console.sendMessage(ChatColor.AQUA + getDescription().getName() + " V" + getDescription().getVersion() + " has been enabled!");
-
-                /*
-        if (updateMessage != null)
-            console.sendMessage(updateMessage);
-            */
-        Bukkit.getPluginManager().registerEvents(this, this);
-    }
-
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        if (updateAvailable && event.getPlayer().isOp()) {
-            event.getPlayer().sendMessage(updateMessage);
-        }
-        if (pluginMessage != null && event.getPlayer().isOp()) {
-            event.getPlayer().sendMessage(pluginMessage);
-        }
-
-        if (getConfig().getBoolean("Title On Join")) {
-            sendTitle(event.getPlayer(), 20, 50, 20, getConfig().getString("Title Message"), getConfig().getString("Subtitle Message"));
-        }
-
-        if (getConfig().getBoolean("Tab Header Enabled")) {
-            sendTabTitle(event.getPlayer(), getConfig().getString("Tab Header Message"), getConfig().getString("Tab Footer Message"));
         }
     }
 }
