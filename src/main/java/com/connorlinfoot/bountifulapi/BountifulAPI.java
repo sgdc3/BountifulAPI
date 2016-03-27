@@ -17,7 +17,7 @@ import com.connorlinfoot.bountifulapi.Utils;
 
 public class BountifulAPI extends JavaPlugin implements Listener {
     public static BountifulAPI bountifulAPI;
-    private String updateMessage;
+    //private String updateMessage;
 
     public void onEnable() {
         // Instances
@@ -26,7 +26,8 @@ public class BountifulAPI extends JavaPlugin implements Listener {
         getConfig().options().copyDefaults(true);
         saveConfig();
 
-        // Updater
+        // Updater NOTE: this is a SNAPSHOT build, so the updater is disabled.
+        /*
         if(getConfig().getBoolean("Updater")) {
             CLUpdate clUpdate = new CLUpdate(this);
             CLUpdate.UpdateResult updateResult = clUpdate.getResult();
@@ -43,6 +44,7 @@ public class BountifulAPI extends JavaPlugin implements Listener {
         if (updateMessage != null) {
             getLogger().info(updateMessage);
         }
+        */
 
         // Register events
         Bukkit.getPluginManager().registerEvents(this, this);
